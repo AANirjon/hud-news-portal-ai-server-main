@@ -231,7 +231,7 @@ async function run() {
     });
 
 
-    // ---------------- Payments ----------------
+    // ---------------- Payments  Stripe----------------
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
