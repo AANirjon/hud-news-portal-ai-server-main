@@ -111,7 +111,7 @@ async function run() {
         // }
 
         // Fetch X posts (Twitter API v2)
-        
+
         // const xAccounts = ["elonmusk", "OpenAI"]; // example
         // let xNews = [];
         // for (const username of xAccounts) {
@@ -141,11 +141,11 @@ async function run() {
         //   }
         // }
 
-        
+
         // const newsletterNews = [];
 
         // Merge all sources
-        let allNews = [...dbNews, ...hnNews ];
+        let allNews = [...dbNews, ...hnNews];
         // let allNews = [...dbNews, ...hnNews, ...redditNews, ...xNews, ...newsletterNews];
 
         // Compute ranking
@@ -189,13 +189,13 @@ async function run() {
         const id = req.params.id;
         const result = await bookmarksCollection.deleteOne({
           _id: new ObjectId(id),
-          userEmail: req.user?.email, 
+          userEmail: req.user?.email,
         });
-    
+
         if (result.deletedCount === 0) {
           return res.status(404).send({ message: "Bookmark not found" });
         }
-    
+
         res.send({ message: "Bookmark deleted successfully", id });
       } catch (err) {
         console.error(err);
@@ -203,22 +203,33 @@ async function run() {
       }
     });
 
-    // ---------------- Settings ----------------
+    // ---------------- Settings Routes ----------------
     app.get("/settings/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      const result = await settingsCollection.findOne({ email });
-      res.send(result || {});
+      try {
+        const result = await settingsCollection.findOne({ email });
+        res.send(result || { email, topics: [], tags: [] });
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+        res.status(500).send({ error: "Failed to fetch settings" });
+      }
     });
 
     app.post("/settings", verifyToken, async (req, res) => {
-      const { email, preferences, tags } = req.body;
-      const result = await settingsCollection.updateOne(
-        { email },
-        { $set: { preferences, tags } },
-        { upsert: true }
-      );
-      res.send(result);
+      const { email, topics, tags } = req.body;
+      try {
+        const result = await settingsCollection.updateOne(
+          { email },
+          { $set: { topics: topics || [], tags: tags || [] } },
+          { upsert: true }
+        );
+        res.send({ success: true, result });
+      } catch (error) {
+        console.error("Error saving settings:", error);
+        res.status(500).send({ error: "Failed to save settings" });
+      }
     });
+
 
     // ---------------- Payments ----------------
     app.post("/create-payment-intent", async (req, res) => {
