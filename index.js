@@ -103,7 +103,7 @@ async function run() {
 
         // ---------------- HackerNews ----------------
         const hnResponse = await axios.get("https://hacker-news.firebaseio.com/v0/topstories.json");
-        const topIds = hnResponse.data.slice(0, 50);
+        const topIds = hnResponse.data.slice(0, 250);
         const hnNews = await Promise.all(
           topIds.map(async id => {
             const item = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
