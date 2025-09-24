@@ -83,6 +83,7 @@ async function run() {
 
     app.post("/users", async (req, res) => {
       const user = req.body;
+      console.log(user);
       const existing = await usersCollection.findOne({ email: user.email });
       if (existing) return res.send({ message: "User already exists" });
       const result = await usersCollection.insertOne(user);
@@ -103,7 +104,7 @@ async function run() {
 
         // ---------------- HackerNews ----------------
         const hnResponse = await axios.get("https://hacker-news.firebaseio.com/v0/topstories.json");
-        const topIds = hnResponse.data.slice(0, 250);
+        const topIds = hnResponse.data.slice(0, 300);
         const hnNews = await Promise.all(
           topIds.map(async id => {
             const item = await axios.get(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
