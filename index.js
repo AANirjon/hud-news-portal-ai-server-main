@@ -29,7 +29,7 @@ const client = new MongoClient(uri, {
 // });
 
 // ---------------- NLP Tag Generator ----------------
-const MASTER_KEYWORDS = { programming: [ "javascript", "typescript", "python", "java", "c++", "golang", "rust" ], frameworks: [ "react", "vue", "angular", "nodejs", "express", "django", "flask", "spring", "flutter", "swift", "kotlin" ], ai_ml: [ "ai", "artificial intelligence", "machine learning", "deep learning", "neural network", "tensorflow", "pytorch" ], web_cloud: [ "web", "frontend", "backend", "fullstack", "cloud", "aws", "azure", "gcp", "docker", "kubernetes" ], startups_business: [ "startup", "venture", "funding", "entrepreneur", "scaleup", "innovation", "fintech", "saas", "ecommerce" ], blockchain_crypto: [ "blockchain", "crypto", "cryptocurrency", "bitcoin", "ethereum", "nft", "security", "cybersecurity" ], data_analytics: [ "data", "big data", "analytics", "datascience", "iot", "automation", "robotics" ] };
+const MASTER_KEYWORDS = { programming: ["javascript", "typescript", "python", "java", "c++", "golang", "rust"], frameworks: ["react", "vue", "angular", "nodejs", "express", "django", "flask", "spring", "flutter", "swift", "kotlin"], ai_ml: ["ai", "artificial intelligence", "machine learning", "deep learning", "neural network", "tensorflow", "pytorch"], web_cloud: ["web", "frontend", "backend", "fullstack", "cloud", "aws", "azure", "gcp", "docker", "kubernetes"], startups_business: ["startup", "venture", "funding", "entrepreneur", "scaleup", "innovation", "fintech", "saas", "ecommerce"], blockchain_crypto: ["blockchain", "crypto", "cryptocurrency", "bitcoin", "ethereum", "nft", "security", "cybersecurity"], data_analytics: ["data", "big data", "analytics", "datascience", "iot", "automation", "robotics"] };
 
 const ALL_KEYWORDS = Object.values(MASTER_KEYWORDS).flat();
 
@@ -114,32 +114,43 @@ async function run() {
               url: item.data.url,
               source: "HackerNews",
               timestamp: new Date(item.data.time * 1000),
-              tags: aiTags,
+              tags: [...aiTags],
               popularity: item.data.score,
             };
           })
         );
 
         // ---------------- Reddit ----------------
-        // const redditSubreddits = ["technology", "MachineLearning"]; // example
-        // let redditNews = [];
-        // for (const subreddit of redditSubreddits) {
-        //   const resp = await axios.get(`https://www.reddit.com/r/${subreddit}/hot.json?limit=5`);
-        //   redditNews = redditNews.concat(
-        //     resp.data.data.children.map(post => {
-        //       const title = post.data.title;
-        //       const url = `https://reddit.com${post.data.permalink}`;
-        //       return {
-        //         title,
-        //         url,
-        //         source: `r/${subreddit}`,
-        //         timestamp: new Date(post.data.created_utc * 1000),
-        //         tags: [...generateTags(title, url), "reddit", subreddit.toLowerCase()],
-        //         popularity: post.data.ups
-        //       };
-        //     })
-        //   );
-        // }
+        const redditSubreddits = ["technology","MachineLearning","ArtificialInteligence","Futurology","programming","javascript","reactjs","webdev","datascience","cybersecurity","gadgets","space","science","worldnews","news","startup","opensource"];
+
+        const redditNews = (
+          await Promise.allSettled(
+            redditSubreddits.map(async (subreddit) => {
+              try {
+                const resp = await axios.get(
+                  `https://www.reddit.com/r/${subreddit}/hot.json?limit=20`,
+                  {
+                    headers: { "User-Agent": "HUDNewsFeedApp/1.0 (by u/yourusername)" }
+                  }
+                );
+
+                return resp.data.data.children.map((post) => ({
+                  title: post.data.title,
+                  url: `https://reddit.com${post.data.permalink}`,
+                  source: `r/${subreddit}`,
+                  timestamp: new Date(post.data.created_utc * 1000),
+                  tags: [
+                    ...generateTagsNLP(post.data.title, post.data.url),
+                  ],
+                  popularity: post.data.ups,
+                }));
+              } catch (err) {
+                console.error(`Failed to fetch r/${subreddit}:`, err.message);
+                return [];
+              }
+            })
+          )
+        ).flatMap((result) => (result.status === "fulfilled" ? result.value : []));
 
         // // ---------------- X / Twitter ----------------
         // const xAccounts = ["elonmusk", "OpenAI"]; // example
@@ -176,10 +187,10 @@ async function run() {
 
         // ---------------- Merge all sources ----------------
         // let allNews = [...dbNews, ...hnNews, ...redditNews, ...xNews];
-        let allNews = [...dbNews, ...hnNews];
+        let allNews = [...dbNews, ...hnNews, ...redditNews];
 
-         /// ---------------- Preference Matching ----------------
-         if (userTopics.length || userTags.length) {
+        /// ---------------- Preference Matching ----------------
+        if (userTopics.length || userTags.length) {
           allNews = allNews.filter(item => {
             const itemTags = (item.tags || []).map(tag => tag.toLowerCase());
             const itemSource = (item.source || "").toLowerCase();
@@ -263,7 +274,7 @@ async function run() {
 
     app.post("/settings", verifyToken, async (req, res) => {
       const { email, scrollSpeed, theme, topics, tags } = req.body;
-    
+
       try {
         // Merge new settings with existing ones
         const existing = await settingsCollection.findOne({ email }) || {};
@@ -274,20 +285,20 @@ async function run() {
           topics: topics ?? existing.topics ?? [],
           tags: tags ?? existing.tags ?? []
         };
-    
+
         const result = await settingsCollection.updateOne(
           { email },
           { $set: updatedSettings },
           { upsert: true }
         );
-    
+
         res.send({ success: true, settings: updatedSettings });
       } catch (err) {
         console.error("Error saving settings:", err);
         res.status(500).send({ error: "Failed to save settings" });
       }
     });
-    
+
 
     // ---------------- Payments  Stripe----------------
     app.post("/create-payment-intent", async (req, res) => {
